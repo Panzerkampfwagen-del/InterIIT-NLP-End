@@ -1,0 +1,15 @@
+# --- Core runtime ---
+pydantic>=2.9
+kafka-python>=2.2
+psycopg[binary]>=3.2
+pgvector>=0.3
+redis>=5.2
+rapidfuzz>=3.10
+openai>=1.60
+
+# --- Synthetic data generation ---
+faker>=30.0
+
+# --- Dev / test ---
+pytest>=8.3
+ruff>=0.8

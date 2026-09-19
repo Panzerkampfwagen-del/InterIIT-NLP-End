@@ -1,0 +1,38 @@
+[
+  {
+    "as_of_time": "2026-02-15T00:00:00+00:00",
+    "inferred_state": "no_signal",
+    "confidence_band": "low",
+    "action": "no_action",
+    "action_subtype": null,
+    "hitl_status": "auto_approved",
+    "notes": "No intervention-worthy condition: inferred_state=no_signal (conf 0.30); explicit no-action.",
+    "evidence_refs": [
+      "EVT_000462"
+    ]
+  },
+  {
+    "as_of_time": "2026-03-12T00:00:00+00:00",
+    "inferred_state": "no_signal",
+    "confidence_band": "low",
+    "action": "no_action",
+    "action_subtype": null,
+    "hitl_status": "auto_approved",
+    "notes": "No intervention-worthy condition: inferred_state=no_signal (conf 0.30); explicit no-action.",
+    "evidence_refs": [
+      "EVT_000462"
+    ]
+  },
+  {
+    "as_of_time": "2026-03-26T00:00:00+00:00",
+    "inferred_state": "no_signal",
+    "confidence_band": "low",
+    "action": "no_action",
+    "action_subtype": null,
+    "hitl_status": "auto_approved",
+    "notes": "No intervention-worthy condition: inferred_state=no_signal (conf 0.30); explicit no-action.",
+    "evidence_refs": [
+      "EVT_000462"
+    ]
+  }
+]

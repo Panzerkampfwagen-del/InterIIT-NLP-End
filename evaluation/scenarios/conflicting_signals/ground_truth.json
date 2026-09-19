@@ -1,0 +1,33 @@
+{
+  "scenario_id": "generated_conflicting_signals",
+  "generated": true,
+  "true_narrative": "Healthy engagement masks a transaction-pattern breakdown: repeated declines and accelerating withdrawals after day 21 indicate financial distress.",
+  "signal_events": [
+    "GEVT_000030",
+    "GEVT_000031",
+    "GEVT_000032",
+    "GEVT_000033",
+    "GEVT_000034",
+    "GEVT_000035",
+    "GEVT_000036",
+    "GEVT_000037"
+  ],
+  "red_herring_events": [],
+  "checkpoints": [
+    {
+      "as_of_time": "2026-05-21T00:00:00Z",
+      "expected_inferred_state": "financial_distress_general",
+      "expected_confidence_band": "low",
+      "expected_action": "no_action",
+      "notes": "Distress window has not started; healthy engagement only."
+    },
+    {
+      "as_of_time": "2026-05-26T00:00:00Z",
+      "expected_inferred_state": "financial_distress_general",
+      "expected_confidence_band": "medium",
+      "expected_action": "support_intervention",
+      "expected_hitl_status": "auto_approved",
+      "notes": "4 declines in 24h plus accelerating withdrawals \u2014 support intervention without escalation."
+    }
+  ]
+}

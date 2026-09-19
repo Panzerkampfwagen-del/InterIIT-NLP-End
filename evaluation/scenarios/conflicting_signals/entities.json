@@ -1,0 +1,32 @@
+{
+  "scenario_id": "generated_conflicting_signals",
+  "generated": true,
+  "customer_id": "CUST_90001",
+  "household_id": null,
+  "profile": {
+    "name": "Conflict Carla",
+    "age": 45,
+    "occupation": "engineer",
+    "customer_value_tier": "mid",
+    "tenure_months": 60,
+    "marital_status": "married",
+    "dependents": 1
+  },
+  "accounts": [
+    {
+      "account_id": "ACC_CHK_001",
+      "type": "checking",
+      "opened_date": "2021-01-15"
+    },
+    {
+      "account_id": "ACC_SAV_001",
+      "type": "savings",
+      "opened_date": "2021-01-15"
+    },
+    {
+      "account_id": "ACC_CC_001",
+      "type": "credit_card",
+      "opened_date": "2021-06-01"
+    }
+  ]
+}

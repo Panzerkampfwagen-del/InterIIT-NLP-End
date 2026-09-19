@@ -1,0 +1,18 @@
+{
+  "scenario_id": "generated_ambiguous",
+  "generated": true,
+  "true_narrative": "Routine pharmacy spend and one moderate withdrawal \u2014 no corroborating pattern. Correct behaviour is no_action at every checkpoint.",
+  "signal_events": [],
+  "red_herring_events": [
+    "GEVT_000000"
+  ],
+  "checkpoints": [
+    {
+      "as_of_time": "2026-05-25T00:00:00Z",
+      "expected_inferred_state": "no_signal",
+      "expected_confidence_band": "low",
+      "expected_action": "no_action",
+      "notes": "No corroborated pattern; explicit no_action."
+    }
+  ]
+}
