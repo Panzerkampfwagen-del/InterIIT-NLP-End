@@ -15,6 +15,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import psycopg
 
 from src.config import get_settings
+from src.logging_setup import get_logger
+
+log = get_logger("scripts.init_db")
 
 
 def main() -> int:
@@ -51,9 +54,9 @@ def main() -> int:
             cur.execute("SELECT extname FROM pg_extension WHERE extname = 'vector'")
             row = cur.fetchone()
             if row is None:
-                print("FATAL: pgvector extension not available", file=sys.stderr)
+                log.error("pgvector_extension_not_available")
                 return 1
-    print("db init ok: pgvector enabled, migration table ready")
+    log.info("db_init_ok", extra={"pgvector": "enabled", "migration_table": "ready"})
     return 0
 
 

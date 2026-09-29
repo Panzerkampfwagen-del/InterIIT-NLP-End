@@ -17,7 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import get_settings  # noqa: E402
 from src.ingestion.dataset_loader import load_scenario  # noqa: E402
+from src.logging_setup import get_logger  # noqa: E402
 from src.orchestration.graph import Customer360Pipeline  # noqa: E402
+
+log = get_logger("scripts.run_demo")
 
 
 def main() -> int:
@@ -45,30 +48,48 @@ def main() -> int:
     out_path = out_dir / f"{args.scenario}_checkpoints.json"
     out_path.write_text(json.dumps(result.checkpoints, indent=2, default=str))
 
-    print("=" * 60)
-    print(f"SCENARIO {args.scenario} - end-to-end run complete")
-    print("=" * 60)
-    print(f"Customer:        {result.customer_id}")
-    print(f"Events processed: {result.events_processed} (failed: {result.events_failed})")
-    print(f"Decisions made:  {len(result.decisions)}")
-    print(f"Checkpoints:     {len(result.checkpoints)} (written to {out_path})")
+    log.info(
+        "demo_complete",
+        extra={
+            "scenario": args.scenario,
+            "customer_id": result.customer_id,
+            "events_processed": result.events_processed,
+            "events_failed": result.events_failed,
+            "decisions": len(result.decisions),
+            "checkpoints": len(result.checkpoints),
+            "checkpoints_path": str(out_path),
+        },
+    )
     if result.final_decision:
         fd = result.final_decision
-        print("")
-        print("-- FINAL DECISION --")
-        print(f"  action:     {fd['final_action']}")
-        print(f"  confidence: {fd['action_confidence']:.2f} ({fd['confidence_band']})")
-        print(f"  status:     {fd['status']}")
-        print(f"  reasoning:  {fd['reasoning_summary']}")
-        print("")
-        print("-- EXPLANATION --")
-        print(f"  trace_id:   {result.trace_id}")
-        print(f"  decision_id: {fd['decision_id']}")
-        print("  full explanation: .venv/bin/python -c \"from src.explainability import Explainer; print(Explainer().explain_json('" + fd["decision_id"] + "'))\"")
-    print("")
-    print("-- CHECKPOINTS (inferred-events output) --")
-    for cp in result.checkpoints:
-        print(f"  {cp['as_of_time']}: {cp['inferred_state']} ({cp['confidence_band']}) -> {cp['action']} [{cp['hitl_status']}]")
+        log.info(
+            "demo_final_decision",
+            extra={
+                "decision_id": fd["decision_id"],
+                "trace_id": result.trace_id,
+                "final_action": fd["final_action"],
+                "action_confidence": fd["action_confidence"],
+                "confidence_band": fd["confidence_band"],
+                "status": fd["status"],
+                "reasoning_summary": fd["reasoning_summary"],
+            },
+        )
+    log.info(
+        "demo_checkpoints",
+        extra={
+            "count": len(result.checkpoints),
+            "items": [
+                {
+                    "as_of_time": cp["as_of_time"],
+                    "inferred_state": cp["inferred_state"],
+                    "confidence_band": cp["confidence_band"],
+                    "action": cp["action"],
+                    "hitl_status": cp["hitl_status"],
+                }
+                for cp in result.checkpoints
+            ],
+        },
+    )
     return 0
 
 

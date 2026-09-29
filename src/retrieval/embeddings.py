@@ -24,7 +24,7 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 def tokenize(text: str) -> list[str]:
     """Lowercase word tokens + bigrams (simple, deterministic)."""
     words = _TOKEN_RE.findall(text.lower())[:512]
-    bigrams = [f"{a}_{b}" for a, b in zip(words, words[1:])]
+    bigrams = [f"{a}_{b}" for a, b in zip(words, words[1:], strict=False)]  # intentionally ragged by one
     return words + bigrams
 
 
@@ -46,7 +46,7 @@ def embed(text: str, dim: int = EMBEDDING_DIM) -> list[float]:
 
 def cosine(a: list[float], b: list[float]) -> float:
     """Cosine similarity between two equal-dim vectors."""
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na == 0 or nb == 0:

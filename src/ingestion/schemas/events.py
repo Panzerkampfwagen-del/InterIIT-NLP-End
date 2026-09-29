@@ -13,13 +13,13 @@ this schema deliberately does not assume a resolved identity.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class SourceSystem(str, Enum):
+class SourceSystem(StrEnum):
     """The nine signal sources in the dataset schema."""
 
     CARD_PAYMENTS = "card_payments"

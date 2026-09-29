@@ -59,6 +59,8 @@ class Settings:
     llm_timeout_s: float = field(default_factory=lambda: _env_float("C360_LLM_TIMEOUT_S", 30.0))
 
     # Observability (OTLP HTTP endpoint of the local collector)
+    otel_endpoint: str = field(default_factory=lambda: _env("C360_OTEL_ENDPOINT", "http://localhost:4318/v1/traces"))
+    otel_enabled: bool = field(default_factory=lambda: _env("C360_OTEL_ENABLED", "1") == "1")
 
     # Streaming / watermark semantics (ADR-02)
     watermark_out_of_order_max_s: float = field(default_factory=lambda: _env_float("C360_WATERMARK_OOO_MAX_S", 30.0))

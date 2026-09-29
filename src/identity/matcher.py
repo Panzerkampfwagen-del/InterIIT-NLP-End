@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 
 from rapidfuzz.distance import JaroWinkler
 
 
-class MatchMethod(str, Enum):
+class MatchMethod(StrEnum):
     FIRST_SEEN = "first_seen"
     EXACT_EMAIL = "exact_email"
     EXACT_PHONE = "exact_phone"

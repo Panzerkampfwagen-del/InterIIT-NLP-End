@@ -6,6 +6,8 @@ the dataset does not cover, per the Phase 1 prompt's archetype list:
 
 - conflicting_signals   (usage says healthy, transactions say distress)
 - ambiguous_signals     (weak, mixed evidence - correct outcome is no_action)
+- fraud_like            (potential_fraud_or_takeover pattern)
+- no_action_stable      (quiet, stable customer - correct outcome is no_action)
 
 All generated scenarios are clearly marked ``generated: true`` in entities.json
 and live under ``evaluation/scenarios/generated_*`` so they can never be
@@ -19,6 +21,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from src.ingestion.schemas.events import EventEnvelope
+from src.logging_setup import get_logger
+
+log = get_logger("generator")
 
 
 def _ev(
@@ -168,9 +173,66 @@ def build_ambiguous(scenario_id: str = "generated_ambiguous") -> tuple[dict, lis
     return _entities(scenario_id, cid, "Ambiguous Andy", "mid"), events, _replay_config(scenario_id, start, start + timedelta(days=25)), gt
 
 
+def build_fraud_like(scenario_id: str = "generated_fraud_like") -> tuple[dict, list[EventEnvelope], dict, dict]:
+    """Potential account takeover: impossible-travel card use + contact change."""
+    cid = "CUST_90003"
+    start = datetime(2026, 5, 1, tzinfo=UTC)
+    events: list[EventEnvelope] = []
+    n = 0
+    for day in range(10):
+        t = start + timedelta(days=day, hours=9)
+        events.append(_ev(f"GEVT_{n:06d}", t, cid, "web_app_events", "login", {"feature_or_page": "dashboard", "device_type": "mobile"}, "ACC_CHK_001"))
+        events.append(_ev(f"GEVT_{n:06d}", t + timedelta(hours=3), cid, "card_payments", "purchase", {"merchant_name": "Home Grocer", "mcc_category": "grocery", "amount": 60, "currency": "USD", "is_international": False, "card_present": True}, "ACC_CC_001"))
+
+    burst = start + timedelta(days=11)
+    events.append(_ev(f"GEVT_{n:06d}", burst, cid, "web_app_events", "login", {"feature_or_page": "profile_settings", "device_type": "unknown_device"}, "ACC_CHK_001"))
+    events.append(_ev(f"GEVT_{n:06d}", burst + timedelta(minutes=30), cid, "loan_kyc", "address_change", {"event_subtype": "address_change", "old_value": "12 Elm St", "new_value": "999 Foreign Ave"}))
+    for hour in (1, 2, 3):
+        events.append(_ev(f"GEVT_{n:06d}", burst + timedelta(days=1, hours=hour), cid, "card_payments", "purchase", {"merchant_name": "Electronics Overseas", "mcc_category": "electronics", "amount": 2400, "currency": "USD", "is_international": True, "card_present": False}, "ACC_CC_001"))
+    events.append(_ev(f"GEVT_{n:06d}", burst + timedelta(days=1, hours=4), cid, "ach_wire", "outbound_transfer", {"direction": "outbound", "amount": 9000, "currency": "USD", "counterparty_name": "Unknown Foreign Corp", "counterparty_country": "XX", "transfer_type": "wire", "status": "completed"}, "ACC_CHK_001"))
+
+    gt = {
+        "scenario_id": scenario_id,
+        "generated": True,
+        "true_narrative": "Overseas card burst, foreign wire, profile change from an unknown device - potential_fraud_or_takeover with compliance_fraud_hold.",
+        "signal_events": [e.event_id for e in events if e.event_time >= burst],
+        "red_herring_events": [],
+        "checkpoints": [
+            {"as_of_time": (burst + timedelta(days=1, hours=5)).isoformat().replace("+00:00", "Z"), "expected_inferred_state": "potential_fraud_or_takeover", "expected_confidence_band": "high", "expected_action": "compliance_fraud_hold", "expected_hitl_status": "escalated", "notes": "Impossible-travel pattern + foreign wire + contact change."},
+        ],
+    }
+    return _entities(scenario_id, cid, "Fraud Frida", "high"), events, _replay_config(scenario_id, start, burst + timedelta(days=2)), gt
+
+
+def build_no_action_stable(scenario_id: str = "generated_no_action_stable") -> tuple[dict, list[EventEnvelope], dict, dict]:
+    """Quiet, stable customer; the entire correct output is explicit no_action."""
+    cid = "CUST_90004"
+    start = datetime(2026, 5, 1, tzinfo=UTC)
+    events: list[EventEnvelope] = []
+    n = 0
+    for day in range(30):
+        t = start + timedelta(days=day, hours=8)
+        events.append(_ev(f"GEVT_{n:06d}", t, cid, "core_banking_ledger", "deposit", {"amount": 3800, "balance_after": 40000, "transaction_type": "salary_credit"}, "ACC_CHK_001"))
+        events.append(_ev(f"GEVT_{n:06d}", t + timedelta(hours=2), cid, "web_app_events", "login", {"feature_or_page": "dashboard", "device_type": "desktop"}, "ACC_CHK_001"))
+        events.append(_ev(f"GEVT_{n:06d}", t + timedelta(hours=5), cid, "card_payments", "purchase", {"merchant_name": "Grocer", "mcc_category": "grocery", "amount": 75, "currency": "USD", "is_international": False, "card_present": True}, "ACC_CC_001"))
+    gt = {
+        "scenario_id": scenario_id,
+        "generated": True,
+        "true_narrative": "Steady salary, steady engagement, steady groceries - zero anomalies for a full month.",
+        "signal_events": [],
+        "red_herring_events": [],
+        "checkpoints": [
+            {"as_of_time": (start + timedelta(days=29)).isoformat().replace("+00:00", "Z"), "expected_inferred_state": "no_signal", "expected_confidence_band": "low", "expected_action": "no_action", "notes": "Baseline stability; explicit no_action (never silence)."},
+        ],
+    }
+    return _entities(scenario_id, cid, "Stable Steve", "low"), events, _replay_config(scenario_id, start, start + timedelta(days=30)), gt
+
+
 ARCHETYPES = {
     "conflicting_signals": build_conflicting_signals,
     "ambiguous": build_ambiguous,
+    "fraud_like": build_fraud_like,
+    "no_action_stable": build_no_action_stable,
 }
 
 
@@ -186,4 +248,4 @@ def generate_all(out_dir: Path | None = None) -> list[Path]:
 
 if __name__ == "__main__":  # pragma: no cover
     for p in generate_all():
-        print("generated:", p)
+        log.info("scenarios_generated", extra={"path": str(p)})

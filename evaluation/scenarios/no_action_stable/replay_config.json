@@ -1,0 +1,6 @@
+{
+  "scenario_id": "generated_no_action_stable",
+  "simulated_start": "2026-05-01T00:00:00Z",
+  "simulated_end": "2026-05-31T00:00:00Z",
+  "replay_speed_seconds_per_simulated_day": 2
+}

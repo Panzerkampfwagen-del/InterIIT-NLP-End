@@ -47,6 +47,15 @@ services:
       timeout: 3s
       retries: 12
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.113.0
+    container_name: c360-otel
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+      - ./evaluation/observability_traces:/otel-traces
+    ports:
+      - "4318:4318"
 
 volumes:
   pgdata:

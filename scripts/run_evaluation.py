@@ -11,6 +11,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from evaluation.harness import format_report, load_json, run_harness  # noqa: E402
+from src.logging_setup import get_logger  # noqa: E402
+
+log = get_logger("scripts.run_evaluation")
 
 
 def main() -> int:
@@ -33,10 +36,10 @@ def main() -> int:
         red_herring_ids=set(gt.get("red_herring_events", [])),
     )
 
-    print(format_report(report))
+    log.info("evaluation_report", extra={"report": format_report(report)})
     if args.out:
         Path(args.out).write_text(json.dumps(report, indent=2, default=str))
-        print(f"report written to {args.out}")
+        log.info("report_written", extra={"path": str(args.out)})
     return 0
 
 

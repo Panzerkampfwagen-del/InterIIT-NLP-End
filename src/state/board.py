@@ -358,7 +358,7 @@ class CustomerStateBoard:
                 )
                 rows = cur.fetchall()
         out: list[StateConflict] = []
-        for rid, path, agents, values, resolved_by, resolution, created, resolved in rows:
+        for _rid, path, agents, values, resolved_by, resolution, _created, resolved in rows:
             out.append(
                 StateConflict(
                     field_path=path,

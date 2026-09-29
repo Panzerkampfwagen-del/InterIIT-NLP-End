@@ -7,14 +7,27 @@ flows through ``RetrievalQuery`` - unscoped retrieval is structurally rejected.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import psycopg
 
 from src.config import get_settings
+from src.logging_setup import get_logger
 from src.retrieval.embeddings import embed
 from src.retrieval.query_builder import RetrievalQuery
+
+log = get_logger("retrieval")
+
+# vector-store resilience: bounded reconnect with backoff
+CONNECT_RETRIES = 2
+CONNECT_BACKOFF_BASE_S = 0.5
+CONNECT_TIMEOUT_S = 5
+
+
+class RetrievalUnavailable(Exception):
+    """Vector store unreachable after bounded retries (callers degrade)."""
 
 
 @dataclass(frozen=True)
@@ -42,13 +55,41 @@ class HybridSearcher:
         self._conn: psycopg.Connection | None = None
 
     def _connection(self) -> psycopg.Connection:
-        if self._conn is None or self._conn.closed:
-            self._conn = psycopg.connect(self.dsn, autocommit=True)
-        return self._conn
+        last_exc: Exception | None = None
+        for attempt in range(CONNECT_RETRIES + 1):
+            try:
+                if self._conn is None or self._conn.closed:
+                    self._conn = psycopg.connect(self.dsn, autocommit=True, connect_timeout=CONNECT_TIMEOUT_S)
+                return self._conn
+            except psycopg.Error as exc:
+                last_exc = exc
+                self._conn = None
+                log.warning("retrieval_connect_failed", extra={"attempt": attempt + 1, "error": type(exc).__name__})
+                if attempt < CONNECT_RETRIES:
+                    time.sleep(CONNECT_BACKOFF_BASE_S * (2**attempt))
+        raise RetrievalUnavailable(str(last_exc)) from last_exc
 
     def close(self) -> None:
         if self._conn is not None and not self._conn.closed:
             self._conn.close()
+
+    def _execute(self, sql: str, params: dict) -> list[tuple]:
+        """Run the query with one mid-session reconnect retry; typed failure."""
+        try:
+            with self._connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql, params)
+                    return cur.fetchall()
+        except psycopg.Error as exc:
+            self._conn = None  # force a fresh connection on the retry
+            log.warning("retrieval_execute_failed_reconnecting", extra={"error": type(exc).__name__})
+            try:
+                with self._connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(sql, params)
+                        return cur.fetchall()
+            except psycopg.Error as exc2:
+                raise RetrievalUnavailable(str(exc2)) from exc2
 
     def search(self, query: RetrievalQuery, now: datetime | None = None) -> list[SearchHit]:
         """Hybrid search; the query's mandatory scope clause is always applied."""
@@ -79,10 +120,7 @@ class HybridSearcher:
             LIMIT %(top_k)s
         """
         params["lambda"] = self.recency_lambda
-        with self._connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-                rows = cur.fetchall()
+        rows = self._execute(sql, params)
         hits: list[SearchHit] = []
         for row in rows:
             chunk_id, customer_id, source, source_id, chunk_text, vsim, lrank, hybrid, event_time, emv = row

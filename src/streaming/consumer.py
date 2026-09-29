@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from src.config import get_settings
@@ -30,7 +30,7 @@ from src.streaming.features import DEFAULT_SPECS, WindowSpec, compute_window_fea
 from src.streaming.watermarks import WatermarkTracker
 
 
-class Outcome(str, Enum):
+class Outcome(StrEnum):
     EMITTED = "emitted"                    # in-order (or within out-of-orderness)
     DUPLICATE = "duplicate"                # event_id already processed
     LATE_RECOMPUTED = "late_recomputed"    # behind watermark but within lateness

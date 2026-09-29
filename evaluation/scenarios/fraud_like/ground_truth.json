@@ -1,0 +1,24 @@
+{
+  "scenario_id": "generated_fraud_like",
+  "generated": true,
+  "true_narrative": "Overseas card burst, foreign wire, profile change from an unknown device \u2014 potential_fraud_or_takeover with compliance_fraud_hold.",
+  "signal_events": [
+    "GEVT_000000",
+    "GEVT_000000",
+    "GEVT_000000",
+    "GEVT_000000",
+    "GEVT_000000",
+    "GEVT_000000"
+  ],
+  "red_herring_events": [],
+  "checkpoints": [
+    {
+      "as_of_time": "2026-05-13T05:00:00Z",
+      "expected_inferred_state": "potential_fraud_or_takeover",
+      "expected_confidence_band": "high",
+      "expected_action": "compliance_fraud_hold",
+      "expected_hitl_status": "escalated",
+      "notes": "Impossible-travel pattern + foreign wire + contact change."
+    }
+  ]
+}

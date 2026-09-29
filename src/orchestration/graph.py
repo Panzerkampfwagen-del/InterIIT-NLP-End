@@ -30,6 +30,8 @@ from src.hitl.store import HitlStore
 from src.identity.resolver import IdentityResolver
 from src.ingestion.dataset_loader import Scenario
 from src.ingestion.schemas.events import EventEnvelope
+from src.logging_setup import get_logger
+from src.observability.otel_setup import c360_attributes
 from src.retrieval.indexer import RetrievalIndexer
 from src.retrieval.search import HybridSearcher
 from src.state.board import CustomerStateBoard
@@ -56,6 +58,9 @@ class CritiqueStep:
             board.resolve_conflict_by_field(customer_id, conflict.field_path, self.name, resolution)
 
 
+log = get_logger("orchestration")
+
+
 @dataclass
 class EventOutcome:
     """One processed event's outcome (per hop, auditable)."""
@@ -65,6 +70,7 @@ class EventOutcome:
     identity_resolved: bool
     stream_outcome: str
     agents_run: list[str] = field(default_factory=list)
+    agents_failed: list[str] = field(default_factory=list)
     trigger_fired: bool = False
     inference: dict[str, Any] | None = None
     decision: dict[str, Any] | None = None
@@ -115,6 +121,7 @@ class Customer360Pipeline:
         settings: Settings | None = None,
         llm=None,
         board: CustomerStateBoard | None = None,
+        tracer=None,
     ) -> None:
         s = settings or get_settings()
         self.settings = s
@@ -136,6 +143,7 @@ class Customer360Pipeline:
         self.explainer = Explainer(s.pg_dsn)
         self.explainer.init_schema()
         self.critique = CritiqueStep()
+        self.tracer = tracer
         self._agents = [
             TransactionAgent(self.board, llm=None),
             UsageAgent(self.board, llm=None),
@@ -208,7 +216,15 @@ class Customer360Pipeline:
 
     def process_event(self, event: EventEnvelope, decide: bool = True) -> EventOutcome:
         """One event through the full graph (all hops, auditable)."""
-        return self._process_event_inner(event, decide)
+        span_attrs = c360_attributes(event.customer_id, event_id=event.event_id)
+        if self.tracer is not None:
+            span_ctx = self.tracer.start_as_current_span("pipeline.process_event", attributes=span_attrs)
+        else:
+            import contextlib
+
+            span_ctx = contextlib.nullcontext()
+        with span_ctx:
+            return self._process_event_inner(event, decide)
 
     def _process_event_inner(self, event: EventEnvelope, decide: bool) -> EventOutcome:
         # 1. Customer Identification (identity resolution)
@@ -236,13 +252,24 @@ class Customer360Pipeline:
         # 3. Specialized Agent Analysis (signal agents; findings -> shared state)
         snap = self.board.get(resolved, apply_dec=False)
         agents_run: list[str] = []
+        agents_failed: list[str] = []
         for agent in self._agents:
             if event.source in agent_sources(agent):
-                agent.analyze_and_record(event, snap, event_time=event.event_time)
-                agents_run.append(agent.name)
+                try:
+                    agent.analyze_and_record(event, snap, event_time=event.event_time)
+                    agents_run.append(agent.name)
+                except Exception as exc:
+                    # defense in depth: base.analyze_and_record already isolates
+                    # detect/narrate/board failures; this guards everything else
+                    # (e.g. CAS conflicts) so one agent never kills the event
+                    agents_failed.append(agent.name)
+                    log.warning(
+                        "agent_step_failed",
+                        extra={"agent": agent.name, "event_id": event.event_id, "error": type(exc).__name__},
+                    )
                 snap = self.board.get(resolved, apply_dec=False)
 
-        outcome = EventOutcome(event.event_id, resolved, True, stream_outcome, agents_run)
+        outcome = EventOutcome(event.event_id, resolved, True, stream_outcome, agents_run, agents_failed)
         if not decide:
             return outcome
 
@@ -301,6 +328,12 @@ class Customer360Pipeline:
         return self._trigger
 
     def _trace_id(self) -> str:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context() if span is not None else None
+        if ctx is not None and ctx.is_valid:
+            return format(ctx.trace_id, "032x")
         return uuid.uuid4().hex
 
     # ------------------------------------------------------------- scenario run

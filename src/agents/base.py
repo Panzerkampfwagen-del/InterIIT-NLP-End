@@ -18,8 +18,11 @@ from typing import Any
 
 from src.agents.llm import LLMClient
 from src.ingestion.schemas.events import EventEnvelope
+from src.logging_setup import get_logger
 from src.state.board import CustomerStateBoard
 from src.state.models import Finding, Provenance
+
+log = get_logger("agents")
 
 
 class SignalAgent(ABC):
@@ -78,20 +81,46 @@ class SignalAgent(ABC):
         state,
         event_time: datetime | None = None,
     ) -> Finding:
-        """Detect → narrate → write finding to the shared state board."""
-        flags = self.detect(event, state)
-        summary = self.narrate(event, flags)
+        """Detect -> narrate -> write finding to the shared state board.
+
+        Failure isolation: a detection/narration/board failure is logged and the
+        agent degrades to a no-signal fallback finding - one agent's failure
+        never kills the pipeline event (unhandled tool executions are impossible
+        to propagate from here).
+        """
         now = event_time or event.event_time
+        try:
+            flags = self.detect(event, state)
+        except Exception as exc:
+            log.warning(
+                "agent_detect_failed",
+                extra={"agent": self.name, "event_id": event.event_id, "error": type(exc).__name__},
+            )
+            flags = []
+        try:
+            summary = self.narrate(event, flags)
+        except Exception as exc:
+            log.warning(
+                "agent_narrate_failed",
+                extra={"agent": self.name, "event_id": event.event_id, "error": type(exc).__name__},
+            )
+            summary = self._deterministic_summary(event, flags)
         finding = Finding(
             summary=summary,
-            confidence=max((f["confidence"] for f in flags), default=0.3),
+            confidence=max((f.get("confidence", 0.0) for f in flags), default=0.3),
             as_of=now,
             provenance=Provenance(agent=self.name, event_id=event.event_id),
             flags=flags,
             evidence_refs=[eid for f in flags for eid in f.get("evidence", [])],
         )
-        self.board.ensure_customer(event.customer_id)
-        self.board.record_finding(event.customer_id, self.domain, finding, now)
+        try:
+            self.board.ensure_customer(event.customer_id)
+            self.board.record_finding(event.customer_id, self.domain, finding, now)
+        except Exception as exc:
+            log.error(
+                "agent_board_write_failed",
+                extra={"agent": self.name, "customer_id": event.customer_id, "error": type(exc).__name__},
+            )
         return finding
 
 

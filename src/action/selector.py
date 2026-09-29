@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from src.action.eligibility import compute_eligibility
 from src.state.models import StateSnapshot
 
 
-class Action(str, Enum):
+class Action(StrEnum):
     """The dataset's fixed action enum (bounded - never open-ended text)."""
 
     NO_ACTION = "no_action"

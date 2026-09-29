@@ -46,7 +46,7 @@ def pipeline():
     b.close()
 
 
-SCENARIOS = ["scenario_01", "scenario_02", "scenario_03", "conflicting_signals", "ambiguous"]
+SCENARIOS = ["scenario_01", "scenario_02", "scenario_03", "conflicting_signals", "ambiguous", "fraud_like", "no_action_stable"]
 
 # Each scenario runs EXACTLY ONCE per module (the pipeline's in-memory dedup
 # correctly suppresses duplicate re-runs); results are shared across tests.
@@ -124,15 +124,12 @@ def test_harness_runs_over_real_pipeline_output(pipeline) -> None:
 def test_demo_script_writes_inferred_events_file(pipeline) -> None:
     """scripts/run_demo.py writes the dataset-schema checkpoints file."""
     import subprocess
-    import sys
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
     out_dir = root / "evaluation" / "inferred_events"
-    venv_python = root / ".venv" / "bin" / "python"
-    python_bin = str(venv_python) if venv_python.exists() else sys.executable
     proc = subprocess.run(
-        [python_bin, str(root / "scripts" / "run_demo.py"), "--scenario", "scenario_01"],
+        [str(root / ".venv" / "bin" / "python"), str(root / "scripts" / "run_demo.py"), "--scenario", "scenario_01"],
         capture_output=True,
         text=True,
         timeout=300,

@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from src.action.selector import Action, ActionDecision
 from src.state.models import StateSnapshot
 
 
-class Outcome(str, Enum):
+class Outcome(StrEnum):
     ALLOW = "allow"
     ESCALATE = "escalate"  # -> HITL (durable pending_approval)
     BLOCK = "block"        # -> explicit no_action (downgrade)

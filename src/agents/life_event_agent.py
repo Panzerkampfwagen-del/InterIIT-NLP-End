@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from src.agents.llm import LLMClient
 from src.ingestion.schemas.events import EventEnvelope
+from src.logging_setup import get_logger
 from src.state.board import CustomerStateBoard
 from src.state.models import Provenance, RiskOrOpportunity, StateSnapshot
 
@@ -45,6 +46,9 @@ ALLOWED_INFERRED_STATES = frozenset(
 )
 
 MAX_RETRIES = 2
+
+
+log = get_logger("life_event")
 
 
 class LifeEventInference(BaseModel):
@@ -124,8 +128,9 @@ class LifeEventAgent:
                             "ref": f"chunk:{h.chunk_id}",
                         }
                     )
-            except Exception:
-                pass  # evidence retrieval is best-effort; findings still flow
+            except Exception as exc:
+                # evidence retrieval is best-effort; findings still flow (logged)
+                log.warning("evidence_retrieval_failed", extra={"customer_id": customer_id, "error": type(exc).__name__})
         return evidence
 
     def _find_disagreement(self, snap: StateSnapshot) -> list[dict[str, Any]]:
@@ -280,7 +285,8 @@ class LifeEventAgent:
                 confidence=float(item.get("confidence", 0.5)),
                 opened_at=existing.opened_at if existing else now,
             )
-        except Exception:
+        except Exception as exc:
+            log.warning("risk_list_read_failed", extra={"error": type(exc).__name__})
             return
         items = [i for i in items if i.type != risk_type]
         items.append(new_item)

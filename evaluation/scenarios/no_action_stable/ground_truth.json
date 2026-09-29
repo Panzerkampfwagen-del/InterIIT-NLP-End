@@ -1,0 +1,16 @@
+{
+  "scenario_id": "generated_no_action_stable",
+  "generated": true,
+  "true_narrative": "Steady salary, steady engagement, steady groceries \u2014 zero anomalies for a full month.",
+  "signal_events": [],
+  "red_herring_events": [],
+  "checkpoints": [
+    {
+      "as_of_time": "2026-05-30T00:00:00Z",
+      "expected_inferred_state": "no_signal",
+      "expected_confidence_band": "low",
+      "expected_action": "no_action",
+      "notes": "Baseline stability; explicit no_action (never silence)."
+    }
+  ]
+}
